@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root { --accent: #0EA5E9; }
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased;
+    font-family: 'DM Sans', system-ui, sans-serif;
+  }
+  .font-display { font-family: 'Syne', sans-serif; }
+  h1,h2,h3 { font-family: 'Syne', sans-serif; }
+}
+
+@layer components {
+  .nav-link {
+    @apply flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium
+           text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-all;
+  }
+  .nav-link.active {
+    @apply bg-sky-50 text-sky-700 font-semibold;
+  }
+  .card { @apply bg-white rounded-2xl border border-slate-100 shadow-sm; }
+  .btn {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold
+           transition-all cursor-pointer select-none;
+  }
+  .btn-primary {
+    @apply btn bg-sky-500 text-white hover:bg-sky-600 shadow-sm;
+  }
+  .btn-ghost {
+    @apply btn bg-white border border-slate-200 text-slate-600 hover:bg-slate-50;
+  }
+  .input {
+    @apply bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm
+           focus:outline-none focus:ring-2 focus:ring-sky-300 w-full;
+  }
+  .tag {
+    @apply inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold;
+  }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width:5px; height:5px; }
+::-webkit-scrollbar-thumb { @apply bg-slate-200 rounded-full; }
+
+/* Table */
+table { @apply w-full text-sm; border-collapse: collapse; }
+thead tr { @apply border-b-2 border-slate-100; }
+thead th { @apply text-left py-3 px-3 text-xs font-bold text-slate-400 uppercase tracking-wider; }
+tbody tr { @apply border-b border-slate-50 hover:bg-sky-50/40 transition-colors; }
+tbody td { @apply py-3 px-3 align-top; }
+
+/* Animation */
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(12px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+.fade-up { animation: fadeUp 0.4s ease both; }
+.fade-up-1 { animation-delay: 0.05s; }
+.fade-up-2 { animation-delay: 0.1s; }
+.fade-up-3 { animation-delay: 0.15s; }
+.fade-up-4 { animation-delay: 0.2s; }
+.fade-up-5 { animation-delay: 0.25s; }
