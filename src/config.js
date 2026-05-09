@@ -11,6 +11,7 @@ export const FACULTY_CONFIG = {
   // (ดูวิธีทำใน SETUP_GUIDE.md)
   googleSheetURL: "https://opensheet.elk.sh/1WV5-v0Wn0cNjSvLdealXNd91Dy2Bm-_JphfNfJd_Dyg/Publications",
   googleSheetAuthorsURL: "https://opensheet.elk.sh/1WV5-v0Wn0cNjSvLdealXNd91Dy2Bm-_JphfNfJd_Dyg/Authors",
+  googleSheetSyncInfoURL: "https://opensheet.elk.sh/1WV5-v0Wn0cNjSvLdealXNd91Dy2Bm-_JphfNfJd_Dyg/SyncInfo",
 
   // สีธีมหลัก (hex)
   accentColor: "#0EA5E9",

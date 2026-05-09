@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { FACULTY_CONFIG } from '../config'
 
-// ─── Mock data สำหรับทดสอบก่อนมี Sheets จริง ──────────────────────────────
+// ─── Mock data สำหรับทดสอบก่อนมี Sheets จริง ─────────────
 const MOCK_PUBLICATIONS = [
   { id:"1", title:"Mangrove biomass estimation using GEDI LiDAR in Phang Nga Bay", authors:"Werapong K.; Somchai T.; Malee P.", year:"2024", journal:"Remote Sensing of Environment", quartile:"Q1", isTop10:"TRUE", citations:"12", docType:"Article", doi:"10.1016/j.rse.2024.001", authorIds:"A001;A002;A003" },
   { id:"2", title:"Machine learning approaches for leptospirosis forecasting in Thailand", authors:"Somchai T.; Werapong K.", year:"2024", journal:"Science of the Total Environment", quartile:"Q1", isTop10:"TRUE", citations:"8", docType:"Article", doi:"10.1016/j.scitotenv.2024.002", authorIds:"A002;A001" },
@@ -23,24 +23,25 @@ const MOCK_PUBLICATIONS = [
 ]
 
 const MOCK_AUTHORS = [
-  { id:"A001", name:"Dr. Werapong Koedsin", nameEn:"Werapong Koedsin", position:"Associate Professor", scopusId:"57200000001", hIndex:"12", citations:"285", pubCount:"9" },
-  { id:"A002", name:"Dr. Somchai Thepnuan", nameEn:"Somchai Thepnuan", position:"Assistant Professor", scopusId:"57200000002", hIndex:"8", citations:"142", pubCount:"7" },
-  { id:"A003", name:"Dr. Malee Phongput", nameEn:"Malee Phongput", position:"Lecturer", scopusId:"57200000003", hIndex:"5", citations:"68", pubCount:"5" },
-  { id:"A004", name:"Dr. Pattama Singharat", nameEn:"Pattama Singharat", position:"Assistant Professor", scopusId:"57200000004", hIndex:"7", citations:"98", pubCount:"6" },
-  { id:"A005", name:"Dr. Nattaporn Wongsai", nameEn:"Nattaporn Wongsai", position:"Lecturer", scopusId:"57200000005", hIndex:"6", citations:"75", pubCount:"4" },
+  { id:"A001", name:"Dr. Werapong Koedsin",  nameEn:"Werapong Koedsin",  position:"Associate Professor", scopusId:"57200000001", hIndex:"12", citations:"285", pubCount:"9" },
+  { id:"A002", name:"Dr. Somchai Thepnuan",  nameEn:"Somchai Thepnuan",  position:"Assistant Professor", scopusId:"57200000002", hIndex:"8",  citations:"142", pubCount:"7" },
+  { id:"A003", name:"Dr. Malee Phongput",    nameEn:"Malee Phongput",    position:"Lecturer",            scopusId:"57200000003", hIndex:"5",  citations:"68",  pubCount:"5" },
+  { id:"A004", name:"Dr. Pattama Singharat", nameEn:"Pattama Singharat", position:"Assistant Professor", scopusId:"57200000004", hIndex:"7",  citations:"98",  pubCount:"6" },
+  { id:"A005", name:"Dr. Nattaporn Wongsai", nameEn:"Nattaporn Wongsai", position:"Lecturer",            scopusId:"57200000005", hIndex:"6",  citations:"75",  pubCount:"4" },
 ]
 
-// ─── Fetch helpers ─────────────────────────────────────────────────────────
+// ─── Fetch helper ──────────────────────────────────────────
 async function fetchSheet(url) {
   const res = await fetch(url)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()
 }
 
-// ─── Main hook ─────────────────────────────────────────────────────────────
+// ─── Main hook ─────────────────────────────────────────────
 export function useSheetData() {
   const [publications, setPublications] = useState([])
   const [authors, setAuthors]           = useState([])
+  const [lastSync, setLastSync]         = useState(null)   // ← วันที่ sync จริง
   const [loading, setLoading]           = useState(true)
   const [error, setError]               = useState(null)
   const [usingMock, setUsingMock]       = useState(false)
@@ -51,7 +52,7 @@ export function useSheetData() {
       !FACULTY_CONFIG.googleSheetURL.includes('YOUR_SHEET_ID')
 
     if (!isConfigured) {
-      // ใช้ mock data แทนถ้ายังไม่ได้ตั้งค่า Sheets
+      // Demo mode — ใช้ mock data
       setPublications(normalizePublications(MOCK_PUBLICATIONS))
       setAuthors(normalizeAuthors(MOCK_AUTHORS))
       setUsingMock(true)
@@ -59,13 +60,32 @@ export function useSheetData() {
       return
     }
 
+    // ดึง SyncInfo ด้วยถ้ามี URL
+    const syncInfoURL = FACULTY_CONFIG.googleSheetSyncInfoURL || null
+
     Promise.all([
       fetchSheet(FACULTY_CONFIG.googleSheetURL),
       fetchSheet(FACULTY_CONFIG.googleSheetAuthorsURL),
+      syncInfoURL ? fetchSheet(syncInfoURL) : Promise.resolve([]),
     ])
-      .then(([pubs, auths]) => {
+      .then(([pubs, auths, syncInfo]) => {
         setPublications(normalizePublications(pubs))
         setAuthors(normalizeAuthors(auths))
+
+        // ── อ่านวันที่ sync ล่าสุดจาก SyncInfo sheet ──────
+        if (Array.isArray(syncInfo) && syncInfo.length > 0) {
+          const syncRow = syncInfo.find(r => {
+            const key = (r.key || r.Key || '').toString().toLowerCase().trim()
+            return key === 'lastsync'
+          })
+          if (syncRow) {
+            const val = syncRow.value || syncRow.Value || ''
+            if (val) {
+              const parsed = new Date(val)
+              if (!isNaN(parsed.getTime())) setLastSync(parsed)
+            }
+          }
+        }
       })
       .catch(err => {
         console.warn('Sheets fetch failed, falling back to mock:', err)
@@ -77,35 +97,36 @@ export function useSheetData() {
       .finally(() => setLoading(false))
   }, [])
 
-  return { publications, authors, loading, error, usingMock }
+  return { publications, authors, lastSync, loading, error, usingMock }
 }
 
-// ─── Normalizers ───────────────────────────────────────────────────────────
+// ─── Normalizers ───────────────────────────────────────────
 function normalizePublications(rows) {
   return rows.map(r => ({
-    id:         r.id || r.EID || String(Math.random()),
-    title:      r.title || r.Title || '',
-    authors:    r.authors || r.Authors || '',
-    authorIds:  (r.authorIds || r.AuthorIDs || '').split(';').map(s => s.trim()).filter(Boolean),
-    year:       parseInt(r.year || r.Year) || 0,
-    journal:    r.journal || r.Journal || '',
-    quartile:   r.quartile || r.Quartile || 'Unknown',
-    isTop10:    (r.isTop10 || r.IsTop10 || '').toString().toUpperCase() === 'TRUE',
-    citations:  parseInt(r.citations || r.Citations) || 0,
-    docType:    r.docType || r.DocType || 'Article',
-    doi:        r.doi || r.DOI || '',
+    id:        r.id        || r.EID      || String(Math.random()),
+    title:     r.title     || r.Title    || '',
+    authors:   r.authors   || r.Authors  || '',
+    authorIds: (r.authorIds || r.AuthorIDs || '')
+               .split(';').map(s => s.trim()).filter(Boolean),
+    year:      parseInt(r.year     || r.Year)     || 0,
+    journal:   r.journal   || r.Journal  || '',
+    quartile:  r.quartile  || r.Quartile || 'Unknown',
+    isTop10:   (r.isTop10  || r.IsTop10  || '').toString().toUpperCase() === 'TRUE',
+    citations: parseInt(r.citations || r.Citations) || 0,
+    docType:   r.docType   || r.DocType  || 'Article',
+    doi:       r.doi       || r.DOI      || '',
   })).filter(p => p.title)
 }
 
 function normalizeAuthors(rows) {
   return rows.map(r => ({
-    id:        r.id || r.ID || '',
-    name:      r.name || r.Name || '',
-    nameEn:    r.nameEn || r.NameEN || r.name || '',
+    id:        r.id       || r.ID       || '',
+    name:      r.name     || r.Name     || '',
+    nameEn:    r.nameEn   || r.NameEN   || r.name || '',
     position:  r.position || r.Position || '',
     scopusId:  r.scopusId || r.ScopusID || '',
-    hIndex:    parseInt(r.hIndex || r.HIndex) || 0,
+    hIndex:    parseInt(r.hIndex    || r.HIndex)    || 0,
     citations: parseInt(r.citations || r.Citations) || 0,
-    pubCount:  parseInt(r.pubCount || r.PubCount) || 0,
+    pubCount:  parseInt(r.pubCount  || r.PubCount)  || 0,
   }))
 }

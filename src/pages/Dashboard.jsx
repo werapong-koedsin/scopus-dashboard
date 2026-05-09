@@ -10,6 +10,17 @@ import { Q_COLORS } from '../components/ui'
 import { FACULTY_CONFIG } from '../config'
 import { ArrowRight, RefreshCw } from 'lucide-react'
 
+// ─── Format วันที่เป็นภาษาไทย ─────────────────────────────
+function formatDateTH(date) {
+  if (!date) return null
+  return date.toLocaleDateString('th-TH', {
+    day:   'numeric',
+    month: 'long',
+    year:  'numeric',
+  })
+}
+
+// ─── Custom chart tooltip ──────────────────────────────────
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null
   return (
@@ -28,26 +39,17 @@ const CustomTooltip = ({ active, payload, label }) => {
   )
 }
 
-// ─── format วันที่เป็นภาษาไทย ─────────────────────────────
-function formatDateTH(date) {
-  return date.toLocaleDateString('th-TH', {
-    day:   'numeric',
-    month: 'long',
-    year:  'numeric',
-  })
-}
-
+// ============================================================
 export default function DashboardPage() {
-  const { publications, authors, loading, usingMock } = useSheetData()
+  const { publications, authors, lastSync, loading, usingMock } = useSheetData()
 
-  const today    = new Date()
-  const endYear  = today.getFullYear()
   const startYear = FACULTY_CONFIG.startYear || 2020
+  const endYear   = new Date().getFullYear()
 
   const stats = useMemo(() => {
     if (!publications.length) return null
-    const q1            = publications.filter(p => p.quartile === 'Q1').length
-    const top10         = publications.filter(p => p.isTop10).length
+    const q1             = publications.filter(p => p.quartile === 'Q1').length
+    const top10          = publications.filter(p => p.isTop10).length
     const totalCitations = publications.reduce((s, p) => s + p.citations, 0)
     return { total: publications.length, q1, top10, totalCitations, authors: authors.length }
   }, [publications, authors])
@@ -92,8 +94,9 @@ export default function DashboardPage() {
     <div className="space-y-6 fade-up">
       {usingMock && <MockBanner />}
 
-      {/* ── Header ─────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+      {/* ── Header ───────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-start
+                      justify-between gap-3">
         <div>
           <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900
                          font-display leading-tight">
@@ -108,22 +111,26 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {/* Updated date badge */}
+        {/* Updated date badge — วันที่ sync จริงจาก SyncInfo sheet */}
         <div className="flex items-center gap-2 bg-white border border-slate-200
                         rounded-xl px-3 py-2 self-start shrink-0 shadow-sm">
           <RefreshCw size={12} className="text-green-500" />
           <div className="flex flex-col leading-tight">
-            <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">
-              อัปเดตล่าสุด
+            <span className="text-[10px] text-slate-400 font-medium
+                             uppercase tracking-wide">
+              ข้อมูล ณ วันที่
             </span>
             <span className="text-xs font-bold text-slate-700">
-              {formatDateTH(today)}
+              {lastSync
+                ? formatDateTH(lastSync)
+                : <span className="text-slate-400 font-normal italic">ยังไม่มีข้อมูล</span>
+              }
             </span>
           </div>
         </div>
       </div>
 
-      {/* ── KPI cards ──────────────────────────────────────── */}
+      {/* ── KPI cards ────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 fade-up fade-up-1">
         <StatCard
           value={stats?.total ?? 0}
@@ -149,14 +156,16 @@ export default function DashboardPage() {
           color="#0284C7" />
       </div>
 
-      {/* ── Charts ─────────────────────────────────────────── */}
+      {/* ── Charts ───────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 fade-up fade-up-2">
 
         {/* By year */}
         <div className="card p-5 lg:col-span-2">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="font-bold text-slate-800 font-display">งานวิจัยรายปี</h3>
+              <h3 className="font-bold text-slate-800 font-display">
+                งานวิจัยรายปี
+              </h3>
               <p className="text-[10px] text-slate-400 mt-0.5">
                 ปี {startYear}–{endYear}
               </p>
@@ -216,13 +225,15 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Bottom row ─────────────────────────────────────── */}
+      {/* ── Bottom row ───────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 fade-up fade-up-3">
 
         {/* Recent publications */}
         <div className="card p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-slate-800 font-display">งานวิจัยล่าสุด</h3>
+            <h3 className="font-bold text-slate-800 font-display">
+              งานวิจัยล่าสุด
+            </h3>
             <Link to="all"
               className="text-xs text-sky-500 hover:text-sky-700
                          flex items-center gap-1 font-semibold">
@@ -301,10 +312,10 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Footer note ────────────────────────────────────── */}
+      {/* ── Footer ───────────────────────────────────────── */}
       <p className="text-center text-[11px] text-slate-300 pb-2">
-        ข้อมูลจาก Scopus · ปี {startYear}–{endYear} ·
-        อัปเดต {formatDateTH(today)}
+        ข้อมูลจาก Scopus · ปี {startYear}–{endYear}
+        {lastSync && ` · ข้อมูล ณ วันที่ ${formatDateTH(lastSync)}`}
       </p>
     </div>
   )
