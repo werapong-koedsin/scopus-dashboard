@@ -16,7 +16,7 @@ export const FACULTY_CONFIG = {
   accentColor: "#0EA5E9",
 
   // ปีเริ่มต้นที่แสดงข้อมูล
-  startYear: 2015,
+  startYear: 2020,
 }
 
 // คำอธิบาย quartile สำหรับ tooltip
